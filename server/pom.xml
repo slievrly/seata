@@ -263,11 +263,7 @@
                             <port>7091</port>
                         </ports>
                         <entrypoint>
-                            <executable>/bin/bash</executable>
-                            <arguments>
-                                <argument>-c</argument>
-                                <argument>"/seata-server/bin/seata-server.sh"</argument>
-                            </arguments>
+                            /bin/bash,/seata-server/bin/seata-server.sh
                         </entrypoint>
                         <labels>
                             <name>seata-server</name>
@@ -285,6 +281,12 @@
                                 <into>/seata-server/bin</into>
                             </path>
                         </paths>
+                        <permissions>
+                            <permission>
+                                <path>/seata-server/bin/*.sh</path>
+                                <mode>0755</mode>
+                            </permission>
+                        </permissions>
                     </extraDirectories>
                     <skip>${image.publish.skip}</skip>
                 </configuration>
