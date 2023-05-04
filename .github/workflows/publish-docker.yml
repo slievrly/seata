@@ -1,4 +1,4 @@
-name: "Publishes"
+name: "Publish Docker Image"
 
 on:
   push:
@@ -11,6 +11,7 @@ on:
 
 jobs:
   # job 1
+<<<<<<< HEAD:.github/workflows/publishes.yml
   publish-to-OSSRH:
     name: "Publish to OSSRH"
     runs-on: ubuntu-latest
@@ -44,6 +45,8 @@ jobs:
           ./mvnw -T 4C clean deploy -Prelease,release-by-github-actions -DskipTests -e -B -Dorg.slf4j.simpleLogger.log.org.apache.maven.cli.transfer.Slf4jMavenTransferListener=warn
 
   # job 2
+=======
+>>>>>>> 8b0a3cbb7... optimize: update expire gpg key and publish workflow (#5548):.github/workflows/publish-docker.yml
   publish-images-to-dockerhub:
     name: "Publish images to DockerHub"
     runs-on: ubuntu-latest
