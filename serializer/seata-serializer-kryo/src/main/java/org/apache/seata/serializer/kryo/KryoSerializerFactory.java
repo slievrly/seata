@@ -25,6 +25,7 @@ public class KryoSerializerFactory {
 
     private static final KryoSerializerFactory FACTORY = new KryoSerializerFactory();
 
+
     private Pool<Kryo> pool = new Pool<Kryo>(true, true) {
 
         @Override
@@ -33,10 +34,10 @@ public class KryoSerializerFactory {
             kryo.setReferences(true);
 
             //Serialization whitelist
-            kryo.setRegistrationRequired(true);
+            kryo.setRegistrationRequired(false);
 
             // register allow class
-            SerializerSecurityRegistry.getAllowClassType().forEach(kryo::register);
+            //SerializerSecurityRegistry.getAllowClassType().forEach(kryo::register);
             return kryo;
         }
     };

@@ -31,42 +31,14 @@ import java.util.LinkedList;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
+import java.util.jar.JarEntry;
+import java.util.jar.JarFile;
 
 import org.apache.seata.core.exception.TransactionExceptionCode;
 import org.apache.seata.core.model.BranchStatus;
 import org.apache.seata.core.model.BranchType;
 import org.apache.seata.core.model.GlobalStatus;
-import org.apache.seata.core.protocol.HeartbeatMessage;
-import org.apache.seata.core.protocol.MergeResultMessage;
-import org.apache.seata.core.protocol.RegisterRMRequest;
-import org.apache.seata.core.protocol.RegisterRMResponse;
-import org.apache.seata.core.protocol.RegisterTMRequest;
-import org.apache.seata.core.protocol.RegisterTMResponse;
 import org.apache.seata.core.protocol.ResultCode;
-import org.apache.seata.core.protocol.BatchResultMessage;
-import org.apache.seata.core.protocol.MergedWarpMessage;
-import org.apache.seata.core.protocol.RpcMessage;
-import org.apache.seata.core.protocol.transaction.BranchCommitRequest;
-import org.apache.seata.core.protocol.transaction.BranchCommitResponse;
-import org.apache.seata.core.protocol.transaction.BranchRegisterRequest;
-import org.apache.seata.core.protocol.transaction.BranchRegisterResponse;
-import org.apache.seata.core.protocol.transaction.BranchReportRequest;
-import org.apache.seata.core.protocol.transaction.BranchReportResponse;
-import org.apache.seata.core.protocol.transaction.BranchRollbackRequest;
-import org.apache.seata.core.protocol.transaction.BranchRollbackResponse;
-import org.apache.seata.core.protocol.transaction.GlobalBeginRequest;
-import org.apache.seata.core.protocol.transaction.GlobalBeginResponse;
-import org.apache.seata.core.protocol.transaction.GlobalCommitRequest;
-import org.apache.seata.core.protocol.transaction.GlobalCommitResponse;
-import org.apache.seata.core.protocol.transaction.GlobalLockQueryRequest;
-import org.apache.seata.core.protocol.transaction.GlobalLockQueryResponse;
-import org.apache.seata.core.protocol.transaction.GlobalReportRequest;
-import org.apache.seata.core.protocol.transaction.GlobalReportResponse;
-import org.apache.seata.core.protocol.transaction.GlobalRollbackRequest;
-import org.apache.seata.core.protocol.transaction.GlobalRollbackResponse;
-import org.apache.seata.core.protocol.transaction.GlobalStatusRequest;
-import org.apache.seata.core.protocol.transaction.GlobalStatusResponse;
-import org.apache.seata.core.protocol.transaction.UndoLogDeleteRequest;
 
 /**
  * Serializer Security Registry
@@ -139,52 +111,21 @@ public class SerializerSecurityRegistry {
             String packageName = "org.apache.seata.core.protocol";
             Enumeration<URL> packageDir = Thread.currentThread().getContextClassLoader().getResources(packageName.replace(".", "/"));
             while (packageDir.hasMoreElements()) {
-                String filePath = packageDir.nextElement().getFile();
-                findProtocolClassByPackage(filePath, packageName, classNameSet);
+                URL resource = packageDir.nextElement();
+                if (resource.getProtocol().equals("file")) {
+                    String filePath = resource.getFile();
+                    findProtocolClassByFile(filePath, packageName, classNameSet);
+                }else if(resource.getProtocol().equals("jar")){
+                    findProtocolClassByJar(packageName, resource, classNameSet);
+                }
             }
         } catch (IOException ignore) {
-        }
-
-        if (classNameSet.size() < 30) {
-            // package org.apache.seata.core.protocol
-            classNameSet.add(BatchResultMessage.class);
-            classNameSet.add(HeartbeatMessage.class);
-            classNameSet.add(MergedWarpMessage.class);
-            classNameSet.add(MergeResultMessage.class);
-            classNameSet.add(RegisterRMRequest.class);
-            classNameSet.add(RegisterRMResponse.class);
-            classNameSet.add(RegisterTMRequest.class);
-            classNameSet.add(RegisterTMResponse.class);
-            classNameSet.add(RpcMessage.class);
-
-            // package org.apache.seata.core.protocol.transaction
-            classNameSet.add(BranchCommitRequest.class);
-            classNameSet.add(BranchCommitResponse.class);
-            classNameSet.add(BranchRegisterRequest.class);
-            classNameSet.add(BranchRegisterResponse.class);
-            classNameSet.add(BranchReportRequest.class);
-            classNameSet.add(BranchReportResponse.class);
-            classNameSet.add(BranchRollbackRequest.class);
-            classNameSet.add(BranchRollbackResponse.class);
-            classNameSet.add(GlobalBeginRequest.class);
-            classNameSet.add(GlobalBeginResponse.class);
-            classNameSet.add(GlobalCommitRequest.class);
-            classNameSet.add(GlobalCommitResponse.class);
-            classNameSet.add(GlobalLockQueryResponse.class);
-            classNameSet.add(GlobalLockQueryRequest.class);
-            classNameSet.add(GlobalReportRequest.class);
-            classNameSet.add(GlobalReportResponse.class);
-            classNameSet.add(GlobalRollbackRequest.class);
-            classNameSet.add(GlobalRollbackResponse.class);
-            classNameSet.add(GlobalStatusRequest.class);
-            classNameSet.add(GlobalStatusResponse.class);
-            classNameSet.add(UndoLogDeleteRequest.class);
         }
 
         return classNameSet;
     }
 
-    private static void findProtocolClassByPackage(String classPath, String rootPackageName, Set classNameSet) {
+    private static void findProtocolClassByFile(String classPath, String rootPackageName, Set<Class<?>> classNameSet) {
         File file = new File(classPath);
         if (!file.exists()) {
             return;
@@ -196,10 +137,10 @@ public class SerializerSecurityRegistry {
             }
             for (File path : files) {
                 if (path.isDirectory()) {
-                    findProtocolClassByPackage(path.getAbsolutePath(), rootPackageName + "." + path.getName(),
+                    findProtocolClassByFile(path.getAbsolutePath(), rootPackageName + "." + path.getName(),
                         classNameSet);
                 } else {
-                    findProtocolClassByPackage(path.getAbsolutePath(), rootPackageName, classNameSet);
+                    findProtocolClassByFile(path.getAbsolutePath(), rootPackageName, classNameSet);
                 }
             }
         } else {
@@ -215,12 +156,34 @@ public class SerializerSecurityRegistry {
         }
     }
 
+    private static void findProtocolClassByJar(String packageName, URL resource, Set<Class<?>> classNameSet) {
+        String jarPath = resource.getFile().substring(5, resource.getFile().indexOf("!"));
+        try (JarFile jar = new JarFile(jarPath)) {
+            Enumeration<JarEntry> entries = jar.entries();
+            while (entries.hasMoreElements()) {
+                JarEntry entry = entries.nextElement();
+                String name = entry.getName();
+                if (matchProtocol(name)) {
+                    String className = name.replace('/', '.').substring(0, name.length() - 6);
+                    if (className.startsWith(packageName)) {
+                        classNameSet.add(Thread.currentThread().getContextClassLoader().loadClass(className));
+                    }
+                }
+
+            }
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        } catch (ClassNotFoundException e) {
+            //ignore interface
+        }
+    }
+
     private static boolean matchProtocol(String fileName) {
         if (!fileName.endsWith(CLASS_POSTFIX)) {
             return false;
         }
         fileName = fileName.replace(CLASS_POSTFIX, "");
-        if (fileName.startsWith(ABSTRACT_CLASS_ID)) {
+        if (fileName.contains(ABSTRACT_CLASS_ID)) {
             return false;
         }
         if (fileName.contains(REQUEST_CLASS_ID) || fileName.contains(RESPONSE_CLASS_ID) || fileName.endsWith(MESSAGE_CLASS_ID)) {
