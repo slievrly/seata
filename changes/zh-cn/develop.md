@@ -25,7 +25,7 @@
 - [[#6903](https://github.com/apache/incubator-seata/pull/6903)] 优化`tableMeta`缓存定时刷新问题
 - [[#7001](https://github.com/apache/incubator-seata/pull/7001)] 优化 metrics 指标
 - [[#7002](https://github.com/apache/incubator-seata/pull/7002)] 优化 AT 事务模式锁释放逻辑
-
+- [[#7007](https://github.com/apache/incubator-seata/pull/7007)] 修复在ARM64平台下CI构建出错的问题
 
 ### security:
 - [[#PR_NO](https://github.com/seata/seata/pull/PR_NO)] 准确简要的PR描述
@@ -44,5 +44,6 @@
 - [laywin](https://github.com/laywin)
 - [wuwen5](https://github.com/wuwen5)
 - [caohdgege](https://github.com/caohdgege)
+- [xingfudeshi](https://github.com/xingfudeshi)
 
 同时，我们收到了社区反馈的很多有价值的issue和建议，非常感谢大家。
