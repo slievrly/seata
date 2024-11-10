@@ -164,10 +164,15 @@ public class MetricsSubscriber {
     private void processGlobalStatusCommitRetryTimeout(GlobalTransactionEvent event) {
         decreaseActive(event);
         reportTwoPhaseTimeout(event);
+        //The phase 2 retry timeout state should be considered a transaction failed
+        reportFailed(event);
     }
 
     private void processGlobalStatusTimeoutRollbackRetryTimeout(GlobalTransactionEvent event) {
         decreaseActive(event);
+        reportTwoPhaseTimeout(event);
+        //The phase 2 retry timeout state should be considered a transaction failed
+        reportFailed(event);
     }
 
     private void decreaseActive(GlobalTransactionEvent event) {
