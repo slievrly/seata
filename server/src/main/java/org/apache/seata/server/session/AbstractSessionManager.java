@@ -37,7 +37,7 @@ import static org.apache.seata.common.DefaultValues.DEFAULT_ROLLBACK_FAILED_UNLO
  * The type Abstract session manager.
  */
 public abstract class AbstractSessionManager implements SessionManager {
-    boolean ROLLBACK_FAILED_UNLOCK_ENABLE = ConfigurationFactory.getInstance().getBoolean(
+    boolean rollbackFailedUnlockEnable = ConfigurationFactory.getInstance().getBoolean(
         ConfigurationKeys.ROLLBACK_FAILED_UNLOCK_ENABLE, DEFAULT_ROLLBACK_FAILED_UNLOCK_ENABLE);
 
     /**
@@ -163,7 +163,7 @@ public abstract class AbstractSessionManager implements SessionManager {
 
     @Override
     public void onFailEnd(GlobalSession globalSession) throws TransactionException {
-        if (ROLLBACK_FAILED_UNLOCK_ENABLE ) {
+        if (rollbackFailedUnlockEnable) {
             globalSession.clean();
             LOGGER.info("xid:{} fail end and remove lock, transaction:{}", globalSession.getXid(), globalSession);
             return;
