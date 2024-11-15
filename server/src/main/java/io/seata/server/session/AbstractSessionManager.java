@@ -15,6 +15,8 @@
  */
 package io.seata.server.session;
 
+import io.seata.common.ConfigurationKeys;
+import io.seata.config.ConfigurationFactory;
 import io.seata.core.exception.BranchTransactionException;
 import io.seata.core.exception.GlobalTransactionException;
 import io.seata.core.exception.TransactionException;
@@ -28,6 +30,8 @@ import io.seata.server.store.TransactionStoreManager.LogOperation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import static io.seata.common.DefaultValues.DEFAULT_ROLLBACK_FAILED_UNLOCK_ENABLE;
+
 /**
  * The type Abstract session manager.
  */
@@ -38,6 +42,8 @@ public abstract class AbstractSessionManager implements SessionManager, SessionL
      */
     protected static final Logger LOGGER = LoggerFactory.getLogger(AbstractSessionManager.class);
 
+    boolean rollbackFailedUnlockEnable = ConfigurationFactory.getInstance().getBoolean(
+        ConfigurationKeys.ROLLBACK_FAILED_UNLOCK_ENABLE, DEFAULT_ROLLBACK_FAILED_UNLOCK_ENABLE);
     /**
      * The Transaction store manager.
      */
@@ -154,6 +160,11 @@ public abstract class AbstractSessionManager implements SessionManager, SessionL
 
     @Override
     public void onFailEnd(GlobalSession globalSession) throws TransactionException {
+        if (rollbackFailedUnlockEnable) {
+            globalSession.clean();
+            LOGGER.info("xid:{} fail end and remove lock, transaction:{}", globalSession.getXid(), globalSession);
+            return;
+        }
         LOGGER.info("xid:{} fail end, transaction:{}",globalSession.getXid(),globalSession.toString());
     }
 

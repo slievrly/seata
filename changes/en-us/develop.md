@@ -24,6 +24,7 @@ Add changes here for all PR submitted to the develop branch.
 - [[#6361](https://github.com/seata/seata/pull/6361)] optimize 401 issues for some links
 - [[#6903](https://github.com/apache/incubator-seata/pull/6903)] optimize `tableMeta` cache scheduled refresh issue
 - [[#7001](https://github.com/seata/seata/pull/7001)] optimize transaction metrics
+- [[#7002](https://github.com/apache/incubator-seata/pull/7002)] optimize lock release logic in AT transaction mode
 
 ### security:
 - [[#PR_NO](https://github.com/seata/seata/pull/PR_NO)] A brief and accurate description of PR

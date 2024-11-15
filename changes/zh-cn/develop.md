@@ -24,6 +24,8 @@
 - [[#6361](https://github.com/seata/seata/pull/6361)] 优化部分链接 401 的问题
 - [[#6903](https://github.com/apache/incubator-seata/pull/6903)] 优化`tableMeta`缓存定时刷新问题
 - [[#7001](https://github.com/apache/incubator-seata/pull/7001)] 优化 metrics 指标
+- [[#7002](https://github.com/apache/incubator-seata/pull/7002)] 优化 AT 事务模式锁释放逻辑
+
 
 ### security:
 - [[#PR_NO](https://github.com/seata/seata/pull/PR_NO)] 准确简要的PR描述
