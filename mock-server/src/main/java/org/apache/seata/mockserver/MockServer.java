@@ -26,6 +26,7 @@ import org.apache.seata.common.thread.NamedThreadFactory;
 import org.apache.seata.common.util.NetUtil;
 import org.apache.seata.common.util.NumberUtils;
 import org.apache.seata.common.util.UUIDGenerator;
+import org.apache.seata.core.rpc.netty.NettyServerConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.SpringApplication;
@@ -69,7 +70,9 @@ public class MockServer {
                             50, 500, TimeUnit.SECONDS,
                             new LinkedBlockingQueue<>(20000),
                             new NamedThreadFactory("ServerHandlerThread", 500), new ThreadPoolExecutor.CallerRunsPolicy());
-                    nettyRemotingServer = new MockNettyRemotingServer(workingThreads);
+                    NettyServerConfig config = new NettyServerConfig();
+                    config.setServerListenPort(port);
+                    nettyRemotingServer = new MockNettyRemotingServer(workingThreads, config);
 
                     // set registry
                     XID.setIpAddress(NetUtil.getLocalIp());
