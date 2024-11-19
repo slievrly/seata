@@ -16,11 +16,11 @@
  */
 package io.seata.core.rpc.netty;
 
+import java.util.HashMap;
+import java.util.Map;
+
 import io.seata.rm.tcc.api.BusinessActionContext;
 import org.springframework.stereotype.Service;
-import vlsi.utils.CompactHashMap;
-
-import java.util.Map;
 
 /**
  * The type Action1.
@@ -28,15 +28,14 @@ import java.util.Map;
 @Service
 public class Action1Impl implements Action1 {
 
-    private static Map<String, Integer> commitMap = new CompactHashMap<>();
-    private static Map<String, Integer> rollbackMap = new CompactHashMap<>();
+    private static Map<String, Integer> commitMap = new HashMap<>();
+    private static Map<String, Integer> rollbackMap = new HashMap<>();
 
     @Override
     public String insert(Long reqId, Map<String, String> params) {
         System.out.println("prepare");
         return "prepare";
     }
-
 
     @Override
     public boolean commitTcc(BusinessActionContext actionContext) {
