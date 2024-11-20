@@ -56,7 +56,7 @@ public class DefaultCore implements Core {
     private static final int RETRY_XAER_NOTA_TIMEOUT = ConfigurationFactory.getInstance().getInt(XAER_NOTA_RETRY_TIMEOUT,
             DefaultValues.DEFAULT_XAER_NOTA_RETRY_TIMEOUT);
 
-    private static Map<BranchType, AbstractCore> coreMap = new ConcurrentHashMap<>();
+    private static final Map<BranchType, AbstractCore> CORE_MAP = new ConcurrentHashMap<>();
 
     /**
      * get the Default core.
@@ -68,7 +68,7 @@ public class DefaultCore implements Core {
             new Class[] {RemotingServer.class}, new Object[] {remotingServer});
         if (CollectionUtils.isNotEmpty(allCore)) {
             for (AbstractCore core : allCore) {
-                coreMap.put(core.getHandleBranchType(), core);
+                CORE_MAP.put(core.getHandleBranchType(), core);
             }
         }
     }
@@ -80,7 +80,7 @@ public class DefaultCore implements Core {
      * @return the core
      */
     public AbstractCore getCore(BranchType branchType) {
-        AbstractCore core = coreMap.get(branchType);
+        AbstractCore core = CORE_MAP.get(branchType);
         if (core == null) {
             throw new NotSupportYetException("unsupported type:" + branchType.name());
         }
@@ -94,7 +94,7 @@ public class DefaultCore implements Core {
      * @param core       the core
      */
     public void mockCore(BranchType branchType, AbstractCore core) {
-        coreMap.put(branchType, core);
+        CORE_MAP.put(branchType, core);
     }
 
     @Override

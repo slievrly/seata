@@ -129,7 +129,7 @@ public class SessionHelper {
             globalSession.changeGlobalStatus(GlobalStatus.Committed);
             globalSession.end();
             if (!DELAY_HANDLE_SESSION) {
-                MetricsPublisher.postSessionDoneEvent(globalSession, false, false);
+                MetricsPublisher.postSessionDoneEvent(globalSession, retryGlobal, false);
             }
             MetricsPublisher.postSessionDoneEvent(globalSession, IdConstants.STATUS_VALUE_AFTER_COMMITTED_KEY, true,
                 beginTime, retryBranch);
@@ -193,14 +193,15 @@ public class SessionHelper {
             }
             boolean retryBranch =
                     currentStatus == GlobalStatus.TimeoutRollbackRetrying || currentStatus == GlobalStatus.RollbackRetrying;
-            if (SessionStatusValidator.isTimeoutGlobalStatus(currentStatus)) {
+            if (!currentStatus.equals(GlobalStatus.TimeoutRollbacked)
+                && SessionStatusValidator.isTimeoutRollbacking(currentStatus)) {
                 globalSession.changeGlobalStatus(GlobalStatus.TimeoutRollbacked);
             } else {
                 globalSession.changeGlobalStatus(GlobalStatus.Rollbacked);
             }
             globalSession.end();
             if (!DELAY_HANDLE_SESSION && !timeoutDone) {
-                MetricsPublisher.postSessionDoneEvent(globalSession, false, false);
+                MetricsPublisher.postSessionDoneEvent(globalSession, retryGlobal, false);
             }
             MetricsPublisher.postSessionDoneEvent(globalSession, IdConstants.STATUS_VALUE_AFTER_ROLLBACKED_KEY, true,
                     beginTime, retryBranch);
@@ -236,7 +237,7 @@ public class SessionHelper {
         GlobalStatus currentStatus = globalSession.getStatus();
         if (isRetryTimeout) {
             globalSession.changeGlobalStatus(GlobalStatus.RollbackRetryTimeout);
-        } else if (SessionStatusValidator.isTimeoutGlobalStatus(currentStatus)) {
+        } else if (SessionStatusValidator.isTimeoutRollbacking(currentStatus)) {
             globalSession.changeGlobalStatus(GlobalStatus.TimeoutRollbackFailed);
         } else {
             globalSession.changeGlobalStatus(GlobalStatus.RollbackFailed);

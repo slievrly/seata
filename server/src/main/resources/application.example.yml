@@ -119,7 +119,7 @@ seata:
     service-port: 8091 #If not configured, the default is '${server.port} + 1000'
     max-commit-retry-timeout: -1
     max-rollback-retry-timeout: -1
-    rollback-retry-timeout-unlock-enable: false
+    rollback-failed-unlock-enable: false
     enable-check-auth: true
     enable-parallel-request-handle: true
     retry-dead-threshold: 130000

@@ -29,6 +29,7 @@ import java.util.concurrent.locks.ReentrantLock;
 import io.seata.common.Constants;
 import io.seata.common.DefaultValues;
 import io.seata.common.XID;
+import io.seata.common.util.BufferUtils;
 import io.seata.common.util.StringUtils;
 import io.seata.config.ConfigurationFactory;
 import io.seata.core.constants.ConfigurationKeys;
@@ -45,6 +46,7 @@ import io.seata.server.store.SessionStorable;
 import io.seata.server.store.StoreConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 
 import static io.seata.core.model.GlobalStatus.AsyncCommitting;
 import static io.seata.core.model.GlobalStatus.CommitRetrying;
@@ -584,7 +586,7 @@ public class GlobalSession implements SessionLifecycle, SessionStorable {
         }
         ByteBuffer byteBuffer = byteBufferThreadLocal.get();
         //recycle
-        byteBuffer.clear();
+        BufferUtils.clear(byteBuffer);
 
         byteBuffer.putLong(transactionId);
         byteBuffer.putInt(timeout);
@@ -621,7 +623,7 @@ public class GlobalSession implements SessionLifecycle, SessionStorable {
 
         byteBuffer.putLong(beginTime);
         byteBuffer.put((byte)status.getCode());
-        byteBuffer.flip();
+        BufferUtils.flip(byteBuffer);
         byte[] result = new byte[byteBuffer.limit()];
         byteBuffer.get(result);
         return result;
@@ -758,7 +760,7 @@ public class GlobalSession implements SessionLifecycle, SessionStorable {
     public void queueToRetryRollback() throws TransactionException {
         this.addSessionLifecycleListener(SessionHolder.getRetryRollbackingSessionManager());
         GlobalStatus currentStatus = this.getStatus();
-        if (SessionStatusValidator.isTimeoutGlobalStatus(currentStatus)) {
+        if (GlobalStatus.TimeoutRollbacking == currentStatus) {
             this.setStatus(GlobalStatus.TimeoutRollbackRetrying);
         } else {
             this.setStatus(GlobalStatus.RollbackRetrying);
