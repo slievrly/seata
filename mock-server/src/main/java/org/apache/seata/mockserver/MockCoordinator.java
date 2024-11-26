@@ -31,7 +31,9 @@ import org.apache.seata.core.model.GlobalStatus;
 import org.apache.seata.core.protocol.AbstractMessage;
 import org.apache.seata.core.protocol.AbstractResultMessage;
 import org.apache.seata.core.protocol.ResultCode;
+import org.apache.seata.core.protocol.transaction.AbstractGlobalEndResponse;
 import org.apache.seata.core.protocol.transaction.AbstractTransactionRequestToTC;
+import org.apache.seata.core.protocol.transaction.AbstractTransactionResponse;
 import org.apache.seata.core.protocol.transaction.BranchRegisterRequest;
 import org.apache.seata.core.protocol.transaction.BranchRegisterResponse;
 import org.apache.seata.core.protocol.transaction.BranchReportRequest;
@@ -134,16 +136,27 @@ public class MockCoordinator implements TCInboundHandler, TransactionMessageHand
         }
     }
 
+    private <T extends AbstractTransactionResponse> T handleException(TransactionException e, T response,
+                                                                      ResultCode resultCode, String messagePrefix,
+                                                                      GlobalStatus... globalStatus) {
+        response.setTransactionExceptionCode(e.getCode());
+        response.setResultCode(resultCode);
+        response.setMsg(messagePrefix + "[" + e.getMessage() + "]");
+        if (response instanceof AbstractGlobalEndResponse) {
+            if (globalStatus != null && globalStatus.length > 0) {
+                ((AbstractGlobalEndResponse)response).setGlobalStatus(globalStatus[0]);
+            }
+        }
+        return response;
+    }
+
     @Override
     public GlobalBeginResponse handle(GlobalBeginRequest request, RpcContext rpcContext) {
         GlobalBeginResponse response = new GlobalBeginResponse();
         try {
             checkMockActionFail(AllBeginFailXid);
         } catch (TransactionException e) {
-            response.setTransactionExceptionCode(e.getCode());
-            response.setResultCode(ResultCode.Failed);
-            response.setMsg("TransactionException[" + e.getMessage() + "]");
-            return response;
+            return handleException(e, response, ResultCode.Failed, "MockBeginException");
         }
         MockGlobalSession session = new MockGlobalSession(rpcContext.getApplicationId(),
             rpcContext.getTransactionServiceGroup(), request.getTransactionName(), request.getTimeout());
@@ -159,10 +172,7 @@ public class MockCoordinator implements TCInboundHandler, TransactionMessageHand
         try {
             checkMockActionFail(request.getXid());
         } catch (TransactionException e) {
-            response.setTransactionExceptionCode(e.getCode());
-            response.setResultCode(ResultCode.Failed);
-            response.setMsg("TransactionException[" + e.getMessage() + "]");
-            return response;
+            return handleException(e, response, ResultCode.Failed, "MockCommitException", GlobalStatus.CommitFailed);
         }
         response.setGlobalStatus(GlobalStatus.Committed);
         response.setResultCode(ResultCode.Success);
@@ -189,10 +199,8 @@ public class MockCoordinator implements TCInboundHandler, TransactionMessageHand
         try {
             checkMockActionFail(request.getXid());
         } catch (TransactionException e) {
-            response.setTransactionExceptionCode(e.getCode());
-            response.setResultCode(ResultCode.Failed);
-            response.setMsg("TransactionException[" + e.getMessage() + "]");
-            return response;
+            return handleException(e, response, ResultCode.Failed, "MockRollbackException",
+                GlobalStatus.RollbackFailed);
         }
         response.setGlobalStatus(GlobalStatus.Rollbacked);
         response.setResultCode(ResultCode.Success);
@@ -219,10 +227,7 @@ public class MockCoordinator implements TCInboundHandler, TransactionMessageHand
         try {
             checkMockActionFail(request.getXid());
         } catch (TransactionException e) {
-            response.setTransactionExceptionCode(e.getCode());
-            response.setResultCode(ResultCode.Failed);
-            response.setMsg("TransactionException[" + e.getMessage() + "]");
-            return response;
+            return handleException(e, response, ResultCode.Failed, "MockBranchRegisterException");
         }
         MockBranchSession branchSession = new MockBranchSession(request.getBranchType());
         String xid = request.getXid();
@@ -253,10 +258,7 @@ public class MockCoordinator implements TCInboundHandler, TransactionMessageHand
         try {
             checkMockActionFail(request.getXid());
         } catch (TransactionException e) {
-            response.setTransactionExceptionCode(e.getCode());
-            response.setResultCode(ResultCode.Failed);
-            response.setMsg("TransactionException[" + e.getMessage() + "]");
-            return response;
+            return handleException(e, response, ResultCode.Failed, "MockBranchReportException");
         }
         String xid = request.getXid();
         branchMap.compute(xid, (key, val) -> {
@@ -277,10 +279,7 @@ public class MockCoordinator implements TCInboundHandler, TransactionMessageHand
         try {
             checkMockActionFail(request.getXid());
         } catch (TransactionException e) {
-            response.setTransactionExceptionCode(e.getCode());
-            response.setResultCode(ResultCode.Failed);
-            response.setMsg("TransactionException[" + e.getMessage() + "]");
-            return response;
+            return handleException(e, response, ResultCode.Failed, "MockLockQueryException");
         }
         response.setLockable(true);
         response.setResultCode(ResultCode.Success);
@@ -293,10 +292,7 @@ public class MockCoordinator implements TCInboundHandler, TransactionMessageHand
         try {
             checkMockActionFail(request.getXid());
         } catch (TransactionException e) {
-            response.setTransactionExceptionCode(e.getCode());
-            response.setResultCode(ResultCode.Failed);
-            response.setMsg("TransactionException[" + e.getMessage() + "]");
-            return response;
+            return handleException(e, response, ResultCode.Failed, "MockStatusException", GlobalStatus.Finished);
         }
         GlobalStatus globalStatus = globalStatusMap.get(request.getXid());
         if (globalStatus == null) {
@@ -313,10 +309,7 @@ public class MockCoordinator implements TCInboundHandler, TransactionMessageHand
         try {
             checkMockActionFail(request.getXid());
         } catch (TransactionException e) {
-            response.setTransactionExceptionCode(e.getCode());
-            response.setResultCode(ResultCode.Failed);
-            response.setMsg("TransactionException[" + e.getMessage() + "]");
-            return response;
+            return handleException(e, response, ResultCode.Failed, "MockReportException", GlobalStatus.Finished);
         }
         GlobalStatus globalStatus = request.getGlobalStatus();
         globalStatusMap.put(request.getXid(), globalStatus);
