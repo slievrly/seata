@@ -40,7 +40,7 @@ function replacer(all, key, obj) {
     }
   });
   //Return the final alternative result, or all if result has not changed
-  return result == null || result === obj ? all : result;
+  return `${result == null || result === obj ? all : result}`;
 }
 
 function format(str, obj) {
