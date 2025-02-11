@@ -148,6 +148,11 @@
         </dependency>
         <dependency>
             <groupId>org.apache.seata</groupId>
+            <artifactId>seata-discovery-namingserver</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.seata</groupId>
             <artifactId>seata-brpc</artifactId>
             <version>${project.version}</version>
         </dependency>
@@ -191,6 +196,11 @@
                     <artifactId>seata-compressor-all</artifactId>
                 </exclusion>
             </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.seata</groupId>
+            <artifactId>seata-rocketmq</artifactId>
+            <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>org.apache.seata</groupId>
@@ -254,12 +264,22 @@
         </dependency>
         <dependency>
             <groupId>org.apache.seata</groupId>
+            <artifactId>seata-serializer-fury</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.seata</groupId>
             <artifactId>seata-serializer-kryo</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>org.apache.seata</groupId>
             <artifactId>seata-serializer-hessian</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.seata</groupId>
+            <artifactId>seata-serializer-fastjson2</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
@@ -316,19 +336,23 @@
         </dependency>
         <dependency>
             <groupId>org.apache.seata</groupId>
-            <artifactId>seata-saga-tm</artifactId>
+            <artifactId>seata-saga-engine-store</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>org.apache.seata</groupId>
-            <artifactId>seata-saga-engine-store</artifactId>
+            <artifactId>seata-saga-spring</artifactId>
             <version>${project.version}</version>
-            <exclusions>
-                <exclusion>
-                    <groupId>${project.groupId}</groupId>
-                    <artifactId>seata-serializer-all</artifactId>
-                </exclusion>
-            </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.seata</groupId>
+            <artifactId>seata-saga-annotation</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.seata</groupId>
+            <artifactId>seata-all</artifactId>
+            <version>${project.version}</version>
         </dependency>
 
         <!-- spring  -->
@@ -565,11 +589,6 @@
             <scope>provided</scope>
         </dependency>
         <dependency>
-            <groupId>mysql</groupId>
-            <artifactId>mysql-connector-java</artifactId>
-            <scope>provided</scope>
-        </dependency>
-        <dependency>
             <groupId>org.postgresql</groupId>
             <artifactId>postgresql</artifactId>
             <scope>provided</scope>
@@ -644,7 +663,7 @@
                             <artifactSet>
                                 <includes>
                                     <include>org.apache.seata:*</include>
-                                    <include>io.seata:seata-all</include>
+                                    <include>io.seata:*</include>
                                 </includes>
                             </artifactSet>
                             <transformers>

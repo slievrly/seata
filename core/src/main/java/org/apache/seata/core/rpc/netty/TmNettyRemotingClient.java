@@ -21,17 +21,19 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
+
 import io.netty.channel.Channel;
 import io.netty.util.concurrent.EventExecutorGroup;
+import org.apache.commons.lang.StringUtils;
 import org.apache.seata.common.DefaultValues;
 import org.apache.seata.common.exception.FrameworkException;
 import org.apache.seata.common.loader.EnhancedServiceLoader;
 import org.apache.seata.common.thread.NamedThreadFactory;
 import org.apache.seata.common.thread.RejectedPolicies;
 import org.apache.seata.common.util.NetUtil;
-import org.apache.seata.config.ConfigurationCache;
+import org.apache.seata.config.CachedConfigurationChangeListener;
+import org.apache.seata.config.Configuration;
 import org.apache.seata.config.ConfigurationChangeEvent;
-import org.apache.seata.config.ConfigurationChangeListener;
 import org.apache.seata.config.ConfigurationFactory;
 import org.apache.seata.core.auth.AuthSigner;
 import org.apache.seata.core.constants.ConfigurationKeys;
@@ -41,9 +43,10 @@ import org.apache.seata.core.protocol.RegisterTMRequest;
 import org.apache.seata.core.protocol.RegisterTMResponse;
 import org.apache.seata.core.rpc.processor.client.ClientHeartbeatProcessor;
 import org.apache.seata.core.rpc.processor.client.ClientOnResponseProcessor;
-import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import static org.apache.seata.common.util.StringUtils.isNotBlank;
 
 /**
  * The rm netty client.
@@ -68,9 +71,10 @@ public final class TmNettyRemotingClient extends AbstractNettyRemotingClient {
         super(nettyClientConfig, eventExecutorGroup, messageExecutor, NettyPoolKey.TransactionRole.TMROLE);
         this.signer = EnhancedServiceLoader.load(AuthSigner.class);
         // set enableClientBatchSendRequest
-        this.enableClientBatchSendRequest = ConfigurationFactory.getInstance().getBoolean(ConfigurationKeys.ENABLE_TM_CLIENT_BATCH_SEND_REQUEST,
+        Configuration configuration = ConfigurationFactory.getInstance();
+        this.enableClientBatchSendRequest = configuration.getBoolean(ConfigurationKeys.ENABLE_TM_CLIENT_BATCH_SEND_REQUEST,
                 DefaultValues.DEFAULT_ENABLE_TM_CLIENT_BATCH_SEND_REQUEST);
-        ConfigurationCache.addConfigListener(ConfigurationKeys.ENABLE_TM_CLIENT_BATCH_SEND_REQUEST, new ConfigurationChangeListener() {
+        configuration.addConfigListener(ConfigurationKeys.ENABLE_TM_CLIENT_BATCH_SEND_REQUEST, new CachedConfigurationChangeListener() {
             @Override
             public void onChangeEvent(ConfigurationChangeEvent event) {
                 String dataId = event.getDataId();
@@ -185,7 +189,7 @@ public final class TmNettyRemotingClient extends AbstractNettyRemotingClient {
         registerProcessor();
         if (initialized.compareAndSet(false, true)) {
             super.init();
-            if (org.apache.seata.common.util.StringUtils.isNotBlank(transactionServiceGroup)) {
+            if (isNotBlank(transactionServiceGroup)) {
                 initConnection();
             }
         }
@@ -245,7 +249,7 @@ public final class TmNettyRemotingClient extends AbstractNettyRemotingClient {
     private void registerProcessor() {
         // 1.registry TC response processor
         ClientOnResponseProcessor onResponseProcessor =
-                new ClientOnResponseProcessor(mergeMsgMap, super.getFutures(), getTransactionMessageHandler());
+                new ClientOnResponseProcessor(mergeMsgMap, super.getFutures(), childToParentMap, getTransactionMessageHandler());
         super.registerProcessor(MessageType.TYPE_SEATA_MERGE_RESULT, onResponseProcessor, null);
         super.registerProcessor(MessageType.TYPE_GLOBAL_BEGIN_RESULT, onResponseProcessor, null);
         super.registerProcessor(MessageType.TYPE_GLOBAL_COMMIT_RESULT, onResponseProcessor, null);

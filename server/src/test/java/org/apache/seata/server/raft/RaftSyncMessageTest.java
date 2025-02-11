@@ -16,14 +16,19 @@
  */
 package org.apache.seata.server.raft;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.ObjectOutputStream;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.seata.common.exception.SeataRuntimeException;
 import org.apache.seata.common.metadata.ClusterRole;
 import org.apache.seata.common.metadata.Node;
+import org.apache.seata.common.store.SessionMode;
 import org.apache.seata.core.exception.TransactionException;
 import org.apache.seata.core.model.BranchType;
 import org.apache.seata.server.cluster.raft.snapshot.RaftSnapshot;
@@ -40,7 +45,6 @@ import org.apache.seata.server.cluster.raft.sync.msg.dto.RaftClusterMetadata;
 import org.apache.seata.server.session.GlobalSession;
 import org.apache.seata.server.session.SessionHelper;
 import org.apache.seata.server.session.SessionHolder;
-import org.apache.seata.server.store.StoreConfig;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
@@ -55,13 +59,53 @@ public class RaftSyncMessageTest {
 
     @BeforeAll
     public static void setUp(ApplicationContext context){
-        SessionHolder.init(StoreConfig.SessionMode.FILE);
+        SessionHolder.init(SessionMode.FILE);
     }
 
     @AfterAll
     public static void destroy(){
         SessionHolder.destroy();
     }
+
+    @Test
+    public void testSecurityMsgSerialize() throws IOException {
+        TestSecurity testSecurity = new TestSecurity();
+        byte[] bytes;
+        try (ByteArrayOutputStream bos = new ByteArrayOutputStream();
+            ObjectOutputStream oos = new ObjectOutputStream(bos)) {
+            oos.writeObject(testSecurity);
+            bytes =  bos.toByteArray();
+        }
+        Assertions.assertThrows(SeataRuntimeException.class,()->RaftSyncMessageSerializer.decode(bytes));
+    }
+
+    @Test
+    public void testSecurityMsgAndSnapshotSerialize() throws IOException {
+        String jndiUrl = "oracle://127.0.0.1:1234/test";
+        String basePayload = "{\"dataSourceName\":\"" + jndiUrl + "\",\"command\":\"123\"}";
+        String payload = "{\"obj\":\"" + Base64.getEncoder().encodeToString(basePayload.getBytes())
+            + "\",\"clz\":\"dm.jdbc.driver.DmdbJdbcRowSet\"}";
+        byte[] payloadBytes = payload.getBytes();
+        byte[] bytes;
+        RaftSyncMessage raftSyncMessage = new RaftSyncMessage();
+        raftSyncMessage.setBody(payloadBytes);
+        try (ByteArrayOutputStream bos = new ByteArrayOutputStream();
+            ObjectOutputStream oos = new ObjectOutputStream(bos)) {
+            oos.writeObject(raftSyncMessage);
+            bytes = bos.toByteArray();
+        }
+        Assertions.assertThrows(SeataRuntimeException.class,()->RaftSyncMessageSerializer.decode(bytes));
+        RaftSnapshot raftSnapshot = new RaftSnapshot();
+        raftSnapshot.setBody(payloadBytes);
+        byte[] snapshotBytes;
+        try (ByteArrayOutputStream bos = new ByteArrayOutputStream();
+            ObjectOutputStream oos = new ObjectOutputStream(bos)) {
+            oos.writeObject(raftSnapshot);
+            snapshotBytes = bos.toByteArray();
+        }
+        Assertions.assertThrows(SeataRuntimeException.class,()->RaftSnapshotSerializer.decode(snapshotBytes));
+    }
+
     @Test
     public void testMsgSerialize() throws IOException {
         RaftSyncMessage raftSyncMessage = new RaftSyncMessage();
@@ -98,6 +142,18 @@ public class RaftSyncMessageTest {
         Assertions.assertEquals("123:123", ((RaftBranchSessionSyncMsg) raftSyncMessageByBranch.getBody()).getBranchSession().getXid());
         Assertions.assertEquals("123:123", ((RaftGlobalSessionSyncMsg) raftSyncMessage1.getBody()).getGlobalSession().getXid());
         Assertions.assertEquals(1234, ((RaftBranchSessionSyncMsg) raftSyncMessageByBranch.getBody()).getBranchSession().getBranchId());
+    }
+
+    @Test
+    public void testSecuritySnapshotSerialize() throws IOException {
+        TestSecurity testSecurity = new TestSecurity();
+        byte[] bytes;
+        try (ByteArrayOutputStream bos = new ByteArrayOutputStream();
+             ObjectOutputStream oos = new ObjectOutputStream(bos)) {
+            oos.writeObject(testSecurity);
+            bytes =  bos.toByteArray();
+        }
+        Assertions.assertThrows(SeataRuntimeException.class,()->RaftSnapshotSerializer.decode(bytes));
     }
 
     @Test

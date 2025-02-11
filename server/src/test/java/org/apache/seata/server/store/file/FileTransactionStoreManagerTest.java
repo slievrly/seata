@@ -23,6 +23,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
+import org.apache.seata.common.store.SessionMode;
 import org.apache.seata.server.session.SessionHolder;
 import org.assertj.core.util.Files;
 import org.junit.jupiter.api.AfterAll;
@@ -33,7 +34,7 @@ import org.mockito.Mockito;
 import org.springframework.boot.test.context.SpringBootTest;
 
 import org.apache.seata.common.util.BufferUtils;
-import org.apache.seata.server.UUIDGenerator;
+import org.apache.seata.common.util.UUIDGenerator;
 import org.apache.seata.server.session.BranchSession;
 import org.apache.seata.server.session.GlobalSession;
 import org.apache.seata.server.session.SessionManager;
@@ -51,7 +52,7 @@ public class FileTransactionStoreManagerTest {
 
     @BeforeAll
     public static void init(ApplicationContext context){
-        SessionHolder.init(StoreConfig.SessionMode.FILE);
+        SessionHolder.init(SessionMode.FILE);
     }
     @AfterAll
     public static void destroy(){

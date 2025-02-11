@@ -1,5 +1,23 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
 #For details about configuration items, see https://seata.apache.org/zh-cn/docs/user/configurations
 #Transport configuration, for client and server
+transport.protocol=seata
 transport.type=TCP
 transport.server=NIO
 transport.heartbeat=true
@@ -26,7 +44,6 @@ transport.compressor=none
 service.vgroupMapping.default_tx_group=default
 #If you use a registry, you can ignore it
 service.default.grouplist=127.0.0.1:8091
-service.enableDegrade=false
 service.disableGlobalTransaction=false
 
 client.metadataMaxAgeMs=30000
@@ -96,6 +113,7 @@ store.db.maxConn=30
 store.db.globalTable=global_table
 store.db.branchTable=branch_table
 store.db.distributedLockTable=distributed_lock
+store.db.vgroupTable=vgroup-table
 store.db.queryLimit=100
 store.db.lockTable=lock_table
 store.db.maxWait=5000
@@ -122,7 +140,7 @@ server.recovery.rollbackingRetryPeriod=1000
 server.recovery.timeoutRetryPeriod=1000
 server.maxCommitRetryTimeout=-1
 server.maxRollbackRetryTimeout=-1
-server.rollbackRetryTimeoutUnlockEnable=false
+server.rollbackFailedUnlockEnable=false
 server.distributedLockExpireTime=10000
 server.session.branchAsyncQueueSize=5000
 server.session.enableBranchAsyncRemove=false
@@ -144,10 +162,13 @@ server.raft.serialization=jackson
 server.raft.compressor=none
 server.raft.sync=true
 
-
+server.ratelimit.enable=false
+server.ratelimit.bucketTokenNumPerSecond = 999999
+server.ratelimit.bucketTokenMaxNum = 999999
+server.ratelimit.bucketTokenInitialNum = 999999
 
 #Metrics configuration, only for the server
-metrics.enabled=false
+metrics.enabled=true
 metrics.registryType=compact
 metrics.exporterList=prometheus
 metrics.exporterPrometheusPort=9898

@@ -20,6 +20,8 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.HashMap;
+import java.util.Map;
 
 import javax.sql.DataSource;
 
@@ -65,6 +67,8 @@ public class DataSourceProxy extends AbstractDataSourceProxy implements Resource
     private String kernelVersion;
 
     private String productVersion;
+
+    private final Map<String, String> variables = new HashMap<>();
 
     /**
      * POLARDB-X 1.X -> TDDL
@@ -164,7 +168,7 @@ public class DataSourceProxy extends AbstractDataSourceProxy implements Resource
         try {
             undoLogManager = UndoLogManagerFactory.getUndoLogManager(dbType);
         } catch (EnhancedServiceNotFoundException e) {
-            String errMsg = String.format("AT mode don't support the the dbtype: %s", dbType);
+            String errMsg = String.format("AT mode don't support the dbtype: %s", dbType);
             throw new IllegalStateException(errMsg, e);
         }
 
@@ -239,6 +243,8 @@ public class DataSourceProxy extends AbstractDataSourceProxy implements Resource
             initSqlServerResourceId();
         } else if (JdbcConstants.DM.equals(dbType)) {
             initDMResourceId();
+        } else if (JdbcConstants.OSCAR.equals(dbType)) {
+            initOscarResourceId();
         } else {
             initDefaultResourceId();
         }
@@ -314,6 +320,18 @@ public class DataSourceProxy extends AbstractDataSourceProxy implements Resource
             resourceId = jdbcUrlBuilder.toString();
         } else {
             resourceId = jdbcUrl;
+        }
+    }
+
+    /**
+     * init the oscar resource id
+     * jdbc:oscar://192.168.x.xx:2003/OSRDB
+     */
+    private void initOscarResourceId() {
+        if (jdbcUrl.contains("?")) {
+            resourceId = jdbcUrl.substring(0, jdbcUrl.indexOf('?')) + "/" + userName;
+        } else {
+            resourceId = jdbcUrl + "/" + userName;
         }
     }
 
@@ -399,26 +417,35 @@ public class DataSourceProxy extends AbstractDataSourceProxy implements Resource
         return kernelVersion;
     }
 
+    public String getVariableValue(String name) {
+        return variables.get(name);
+    }
+
     private void validMySQLVersion(Connection connection) {
         if (!JdbcConstants.MYSQL.equals(dbType)) {
             return;
         }
-        try (PreparedStatement preparedStatement = connection.prepareStatement("SELECT VERSION()");
-             ResultSet versionResult = preparedStatement.executeQuery()) {
-            if (versionResult.next()) {
-                String version = versionResult.getString("VERSION()");
-                if (StringUtils.isBlank(version)) {
-                    return;
+        try (PreparedStatement preparedStatement = connection.prepareStatement("SHOW VARIABLES");
+             ResultSet rs = preparedStatement.executeQuery()) {
+            while (rs.next()) {
+                String name = rs.getString(1);
+                String value = rs.getString(2);
+                if (StringUtils.isNotBlank(name)) {
+                    variables.put(name.toLowerCase(), value);
                 }
-                int dashIdx = version.indexOf('-');
-                // in mysql: 5.6.45, in polardb-x: 5.6.45-TDDL-xxx
-                if (dashIdx > 0) {
-                    kernelVersion = version.substring(0, dashIdx);
-                    productVersion = version.substring(dashIdx + 1);
-                } else {
-                    kernelVersion = version;
-                    productVersion = version;
-                }
+            }
+            String version = variables.get("version");
+            if (StringUtils.isBlank(version)) {
+                return;
+            }
+            int dashIdx = version.indexOf('-');
+            // in mysql: 5.6.45, in polardb-x: 5.6.45-TDDL-xxx
+            if (dashIdx > 0) {
+                kernelVersion = version.substring(0, dashIdx);
+                productVersion = version.substring(dashIdx + 1);
+            } else {
+                kernelVersion = version;
+                productVersion = version;
             }
         } catch (Exception e) {
             LOGGER.error("check mysql version fail error: {}", e.getMessage());

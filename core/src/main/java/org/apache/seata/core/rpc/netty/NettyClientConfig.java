@@ -21,6 +21,7 @@ import org.apache.seata.core.constants.ConfigurationKeys;
 import org.apache.seata.core.rpc.TransportServerType;
 
 import static org.apache.seata.common.DefaultValues.DEFAULT_ENABLE_CLIENT_BATCH_SEND_REQUEST;
+import static org.apache.seata.common.DefaultValues.DEFAULT_PROTOCOL;
 import static org.apache.seata.common.DefaultValues.DEFAULT_RPC_RM_REQUEST_TIMEOUT;
 import static org.apache.seata.common.DefaultValues.DEFAULT_RPC_TM_REQUEST_TIMEOUT;
 import static org.apache.seata.common.DefaultValues.DEFAULT_SELECTOR_THREAD_PREFIX;
@@ -51,7 +52,7 @@ public class NettyClientConfig extends NettyBaseConfig {
     private static final int MAX_CHECK_ALIVE_RETRY = 300;
     private static final int CHECK_ALIVE_INTERVAL = 10;
     private static final String SOCKET_ADDRESS_START_CHAR = "/";
-    private static final long MAX_ACQUIRE_CONN_MILLS = 60 * 1000L;
+    private static final long MAX_ACQUIRE_CONN_MILLS = 10 * 1000L;
     private static final String RPC_DISPATCH_THREAD_PREFIX = "rpcDispatch";
     private static final int DEFAULT_MAX_POOL_ACTIVE = 1;
     private static final int DEFAULT_MIN_POOL_IDLE = 0;
@@ -449,6 +450,10 @@ public class NettyClientConfig extends NettyBaseConfig {
      */
     public String getRmDispatchThreadPrefix() {
         return RPC_DISPATCH_THREAD_PREFIX + "_" + NettyPoolKey.TransactionRole.RMROLE.name();
+    }
+
+    public String getProtocol() {
+        return CONFIG.getConfig(org.apache.seata.common.ConfigurationKeys.TRANSPORT_PROTOCOL, DEFAULT_PROTOCOL);
     }
 
     @Deprecated

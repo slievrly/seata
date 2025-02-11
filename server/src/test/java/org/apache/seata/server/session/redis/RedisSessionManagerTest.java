@@ -27,7 +27,7 @@ import org.apache.seata.core.exception.TransactionException;
 import org.apache.seata.core.model.BranchStatus;
 import org.apache.seata.core.model.BranchType;
 import org.apache.seata.core.model.GlobalStatus;
-import org.apache.seata.server.UUIDGenerator;
+import org.apache.seata.common.util.UUIDGenerator;
 import org.apache.seata.server.session.BranchSession;
 import org.apache.seata.server.session.GlobalSession;
 import org.apache.seata.server.session.SessionCondition;
@@ -37,6 +37,7 @@ import org.apache.seata.server.storage.redis.store.RedisTransactionStoreManager;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -48,6 +49,7 @@ import static org.apache.seata.common.DefaultValues.DEFAULT_TX_GROUP;
 /**
  */
 @SpringBootTest
+@EnabledIfSystemProperty(named = "redisCaseEnabled", matches = "true")
 public class RedisSessionManagerTest {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(RedisSessionManagerTest.class);
@@ -55,7 +57,6 @@ public class RedisSessionManagerTest {
 
     @BeforeAll
     public static void start(ApplicationContext context) throws IOException {
-        MockRedisServer.getInstance();
         EnhancedServiceLoader.unloadAll();
         RedisTransactionStoreManager transactionStoreManager = RedisTransactionStoreManager.getInstance();
         RedisSessionManager redisSessionManager = new RedisSessionManager();

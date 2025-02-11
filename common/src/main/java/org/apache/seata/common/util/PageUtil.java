@@ -76,9 +76,9 @@ public class PageUtil {
             + SOURCE_SQL_PLACE_HOLD + ") temp ) where rn between " + START_PLACE_HOLD + " and " + END_PLACE_HOLD;
 
     /**
-     * The constant SQLSERVER_PAGE_TEMPLATE
+     * The constant SQLSERVER_PAGE_TEMPLATE. Currently, it only works for order-by condition of "ORDER BY gmt_create desc"
      */
-    private static final String SQLSERVER_PAGE_TEMPLATE = "select * from (select temp.*, ROW_NUMBER() OVER(ORDER BY (select NULL)) AS rowId from ("
+    private static final String SQLSERVER_PAGE_TEMPLATE = "select * from (select temp.*, ROW_NUMBER() OVER(ORDER BY gmt_create desc) AS rowId from ("
             + SOURCE_SQL_PLACE_HOLD + ") temp ) t where t.rowId between " + START_PLACE_HOLD + " and " + END_PLACE_HOLD;
     /**
      * check page parm
@@ -109,8 +109,10 @@ public class PageUtil {
             case "mysql":
             case "h2":
             case "postgresql":
+            case "kingbase":
             case "oceanbase":
             case "dm":
+            case "oscar":
                 return LIMIT_TEMPLATE.replace(SOURCE_SQL_PLACE_HOLD, sourceSql)
                         .replace(LIMIT_PLACE_HOLD, String.valueOf(pageSize))
                         .replace(OFFSET_PLACE_HOLD, String.valueOf((pageNum - 1) * pageSize));
@@ -141,8 +143,10 @@ public class PageUtil {
             case "oceanbase":
             case "oracle":
             case "dm":
+            case "oscar":
                 return sourceSql.replaceAll("(?i)(?<=select)(.*)(?=from)", " count(1) ");
             case "postgresql":
+            case "kingbase":
             case "sqlserver":
                 int lastIndexOfOrderBy = sourceSql.toLowerCase().lastIndexOf("order by");
                 if (lastIndexOfOrderBy != -1) {
@@ -183,6 +187,7 @@ public class PageUtil {
             case "postgresql":
             case "sqlserver":
             case "dm":
+            case "oscar":
                 return " and FLOOR(" + timeColumnName + "/1000) >= ? ";
             default:
                 throw new IllegalArgumentException("The DB type :" + dbType + " is not supported yet");
@@ -202,6 +207,7 @@ public class PageUtil {
             case "postgresql":
             case "sqlserver":
             case "dm":
+            case "oscar":
                 return " and FLOOR(" + timeColumnName + "/1000) <= ? ";
             default:
                 throw new IllegalArgumentException("The DB type :" + dbType + " is not supported yet");

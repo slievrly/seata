@@ -17,9 +17,10 @@
 package org.apache.seata.core.protocol;
 
 import org.apache.seata.config.ConfigurationFactory;
-import org.apache.seata.core.serializer.SerializerType;
 import org.apache.seata.core.compressor.CompressorType;
 import org.apache.seata.core.constants.ConfigurationKeys;
+import org.apache.seata.core.serializer.SerializerServiceLoader;
+import org.apache.seata.core.serializer.SerializerType;
 
 /**
  * @since 0.7.0
@@ -32,9 +33,19 @@ public interface ProtocolConstants {
     byte[] MAGIC_CODE_BYTES = {(byte) 0xda, (byte) 0xda};
 
     /**
+     * Old protocol version
+     */
+    byte VERSION_0 = 0;
+
+    /**
      * Protocol version
      */
-    byte VERSION = 1;
+    byte VERSION_1 = 1;
+
+    /**
+     * Protocol version
+     */
+    byte VERSION = VERSION_1;
 
     /**
      * Max frame length
@@ -75,8 +86,7 @@ public interface ProtocolConstants {
      * 
      * @see SerializerType#SEATA
      */
-    byte CONFIGURED_CODEC = SerializerType.getByName(ConfigurationFactory.getInstance()
-            .getConfig(ConfigurationKeys.SERIALIZE_FOR_RPC, SerializerType.SEATA.name())).getCode();
+    byte CONFIGURED_CODEC = SerializerServiceLoader.getDefaultSerializerType().getCode();
 
     /**
      * Configured compressor by user, default is NONE

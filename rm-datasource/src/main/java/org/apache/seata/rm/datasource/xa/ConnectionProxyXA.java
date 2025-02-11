@@ -24,6 +24,7 @@ import javax.transaction.xa.XAException;
 import javax.transaction.xa.XAResource;
 
 import org.apache.seata.common.DefaultValues;
+import org.apache.seata.common.lock.ResourceLock;
 import org.apache.seata.common.util.StringUtils;
 import org.apache.seata.config.ConfigurationFactory;
 import org.apache.seata.core.exception.TransactionException;
@@ -55,6 +56,8 @@ public class ConnectionProxyXA extends AbstractConnectionProxyXA implements Hold
 
     private volatile boolean xaActive = false;
 
+    private volatile boolean xaEnded = false;
+
     private volatile boolean kept = false;
 
     private volatile boolean rollBacked = false;
@@ -66,6 +69,8 @@ public class ConnectionProxyXA extends AbstractConnectionProxyXA implements Hold
     private static final Integer TIMEOUT = Math.max(BRANCH_EXECUTION_TIMEOUT, DefaultValues.DEFAULT_GLOBAL_TRANSACTION_TIMEOUT);
 
     private boolean shouldBeHeld = false;
+
+    private final ResourceLock resourceLock = new ResourceLock();
 
     /**
      * Constructor of Connection Proxy for XA mode.
@@ -111,6 +116,13 @@ public class ConnectionProxyXA extends AbstractConnectionProxyXA implements Hold
         }
     }
 
+    private void xaEnd(XAXid xaXid, int flags) throws XAException {
+        if (!xaEnded) {
+            xaResource.end(xaXid, flags);
+            xaEnded = true;
+        }
+    }
+
     /**
      * XA commit
      * @param xid global transaction xid
@@ -118,10 +130,12 @@ public class ConnectionProxyXA extends AbstractConnectionProxyXA implements Hold
      * @param applicationData application data
      * @throws SQLException SQLException
      */
-    public synchronized void xaCommit(String xid, long branchId, String applicationData) throws XAException {
-        XAXid xaXid = XAXidBuilder.build(xid, branchId);
-        xaResource.commit(xaXid, false);
-        releaseIfNecessary();
+    public void xaCommit(String xid, long branchId, String applicationData) throws XAException {
+        try (ResourceLock ignored = resourceLock.obtain()) {
+            XAXid xaXid = XAXidBuilder.build(xid, branchId);
+            xaResource.commit(xaXid, false);
+            releaseIfNecessary();
+        }
     }
 
     /**
@@ -130,9 +144,15 @@ public class ConnectionProxyXA extends AbstractConnectionProxyXA implements Hold
      * @param branchId transaction branch id
      * @param applicationData application data
      */
-    public synchronized void xaRollback(String xid, long branchId, String applicationData) throws XAException {
-        XAXid xaXid = XAXidBuilder.build(xid, branchId);
-        xaRollback(xaXid);
+    public void xaRollback(String xid, long branchId, String applicationData) throws XAException {
+        try (ResourceLock ignored = resourceLock.obtain()) {
+            if (this.xaBranchXid != null) {
+                xaRollback(xaBranchXid);
+            } else {
+                XAXid xaXid = XAXidBuilder.build(xid, branchId);
+                xaRollback(xaXid);
+            }
+        }
     }
 
     /**
@@ -148,6 +168,11 @@ public class ConnectionProxyXA extends AbstractConnectionProxyXA implements Hold
     @Override
     public void setAutoCommit(boolean autoCommit) throws SQLException {
         if (currentAutoCommitStatus == autoCommit) {
+            return;
+        }
+        if (isReadOnly()) {
+            //If it is a read-only transaction, do nothing
+            currentAutoCommitStatus = autoCommit;
             return;
         }
         if (autoCommit) {
@@ -196,36 +221,52 @@ public class ConnectionProxyXA extends AbstractConnectionProxyXA implements Hold
     }
 
     @Override
-    public synchronized void commit() throws SQLException {
-        if (currentAutoCommitStatus) {
-            // Ignore the committing on an autocommit session.
-            return;
-        }
-        if (!xaActive || this.xaBranchXid == null) {
-            throw new SQLException("should NOT commit on an inactive session", SQLSTATE_XA_NOT_END);
-        }
-        try {
-            // XA End: Success
-            end(XAResource.TMSUCCESS);
-            long now = System.currentTimeMillis();
-            checkTimeout(now);
-            setPrepareTime(now);
-            xaResource.prepare(xaBranchXid);
-        } catch (XAException xe) {
-            // Branch Report to TC: Failed
-            reportStatusToTC(BranchStatus.PhaseOne_Failed);
-            throw new SQLException(
-                "Failed to end(TMSUCCESS)/prepare xa branch on " + xid + "-" + xaBranchXid.getBranchId() + " since " + xe
-                    .getMessage(), xe);
-        } finally {
-            cleanXABranchContext();
+    public void commit() throws SQLException {
+        try (ResourceLock ignored = resourceLock.obtain()) {
+            if (currentAutoCommitStatus || isReadOnly()) {
+                // Ignore the committing on an autocommit session and read-only transaction.
+                return;
+            }
+            if (!xaActive || this.xaBranchXid == null) {
+                throw new SQLException("should NOT commit on an inactive session", SQLSTATE_XA_NOT_END);
+            }
+            try {
+                // XA End: Success
+                try {
+                    end(XAResource.TMSUCCESS);
+                } catch (SQLException sqle) {
+                    // Rollback immediately before the XA Branch Context is deleted.
+                    String xaBranchXid = this.xaBranchXid.toString();
+                    rollback();
+                    throw new SQLException("Branch " + xaBranchXid + " was rollbacked on committing since " + sqle.getMessage(), SQLSTATE_XA_NOT_END, sqle);
+                }
+                long now = System.currentTimeMillis();
+                checkTimeout(now);
+                setPrepareTime(now);
+                int prepare = xaResource.prepare(xaBranchXid);
+                // Based on the four databases: MySQL (8), Oracle (12c), Postgres (16), and MSSQL Server (2022),
+                // only Oracle has read-only optimization; the others do not provide read-only feedback.
+                // Therefore, the database type check can be eliminated here.
+                if (prepare == XAResource.XA_RDONLY) {
+                    // Branch Report to TC: RDONLY
+                    reportStatusToTC(BranchStatus.PhaseOne_RDONLY);
+                }
+            } catch (XAException xe) {
+                // Branch Report to TC: Failed
+                reportStatusToTC(BranchStatus.PhaseOne_Failed);
+                throw new SQLException(
+                        "Failed to end(TMSUCCESS)/prepare xa branch on " + xid + "-" + xaBranchXid.getBranchId() + " since " + xe
+                                .getMessage(), xe);
+            } finally {
+                cleanXABranchContext();
+            }
         }
     }
 
     @Override
     public void rollback() throws SQLException {
-        if (currentAutoCommitStatus) {
-            // Ignore the committing on an autocommit session.
+        if (currentAutoCommitStatus || isReadOnly()) {
+            // Ignore the committing on an autocommit session and read-only transaction.
             return;
         }
         if (!xaActive || this.xaBranchXid == null) {
@@ -234,7 +275,7 @@ public class ConnectionProxyXA extends AbstractConnectionProxyXA implements Hold
         try {
             if (!rollBacked) {
                 // XA End: Fail
-                xaResource.end(this.xaBranchXid, XAResource.TMFAIL);
+                xaEnd(xaBranchXid, XAResource.TMFAIL);
                 xaRollback(xaBranchXid);
             }
             // Branch Report to TC
@@ -248,32 +289,35 @@ public class ConnectionProxyXA extends AbstractConnectionProxyXA implements Hold
         }
     }
 
-    private synchronized void start() throws XAException, SQLException {
-        // 3. XA Start
-        if (JdbcConstants.ORACLE.equals(resource.getDbType())) {
-            xaResource.start(this.xaBranchXid, SeataXAResource.ORATRANSLOOSE);
-        } else {
-            xaResource.start(this.xaBranchXid, XAResource.TMNOFLAGS);
-        }
+    private void start() throws XAException, SQLException {
+        try (ResourceLock ignored = resourceLock.obtain()) {
+            // 3. XA Start
+            if (JdbcConstants.ORACLE.equals(resource.getDbType())) {
+                xaResource.start(this.xaBranchXid, SeataXAResource.ORATRANSLOOSE);
+            } else {
+                xaResource.start(this.xaBranchXid, XAResource.TMNOFLAGS);
+            }
 
-        try {
-            termination();
-        } catch (SQLException e) {
-            // the framework layer does not actively call ROLLBACK when setAutoCommit throws an SQL exception
-            xaResource.end(this.xaBranchXid, XAResource.TMFAIL);
-            xaRollback(xaBranchXid);
-            // Branch Report to TC: Failed
-            reportStatusToTC(BranchStatus.PhaseOne_Failed);
-            throw  e;
+            try {
+                termination();
+            } catch (SQLException e) {
+                // the framework layer does not actively call ROLLBACK when setAutoCommit throws an SQL exception
+                xaResource.end(this.xaBranchXid, XAResource.TMFAIL);
+                xaRollback(xaBranchXid);
+                // Branch Report to TC: Failed
+                reportStatusToTC(BranchStatus.PhaseOne_Failed);
+                throw e;
+            }
         }
     }
 
     private synchronized void end(int flags) throws XAException, SQLException {
-        xaResource.end(xaBranchXid, flags);
+        xaEnd(xaBranchXid, flags);
         termination();
     }
 
     private void cleanXABranchContext() {
+        xaEnded = false;
         branchRegisterTime = null;
         prepareTime = null;
         xaActive = false;
@@ -290,27 +334,31 @@ public class ConnectionProxyXA extends AbstractConnectionProxyXA implements Hold
     }
 
     @Override
-    public synchronized void close() throws SQLException {
-        rollBacked = false;
-        if (isHeld() && shouldBeHeld()) {
-            // if kept by a keeper, just hold the connection.
-            return;
+    public void close() throws SQLException {
+        try (ResourceLock ignored = resourceLock.obtain()) {
+            rollBacked = false;
+            if (isHeld() && shouldBeHeld()) {
+                // if kept by a keeper, just hold the connection.
+                return;
+            }
+            cleanXABranchContext();
+            originalConnection.close();
         }
-        cleanXABranchContext();
-        originalConnection.close();
     }
 
-    protected synchronized void closeForce() throws SQLException {
-        Connection physicalConn = getWrappedConnection();
-        if (physicalConn instanceof PooledConnection) {
-            physicalConn = ((PooledConnection) physicalConn).getConnection();
+    protected void closeForce() throws SQLException {
+        try (ResourceLock ignored = resourceLock.obtain()) {
+            Connection physicalConn = getWrappedConnection();
+            if (physicalConn instanceof PooledConnection) {
+                physicalConn = ((PooledConnection) physicalConn).getConnection();
+            }
+            // Force close the physical connection
+            physicalConn.close();
+            rollBacked = false;
+            cleanXABranchContext();
+            originalConnection.close();
+            releaseIfNecessary();
         }
-        // Force close the physical connection
-        physicalConn.close();
-        rollBacked = false;
-        cleanXABranchContext();
-        originalConnection.close();
-        releaseIfNecessary();
     }
 
     @Override
@@ -365,4 +413,11 @@ public class ConnectionProxyXA extends AbstractConnectionProxyXA implements Hold
         }
     }
 
+    /**
+     * Get the lock of the current connection
+     * @return the RESOURCE_LOCK
+     */
+    public ResourceLock getResourceLock() {
+        return resourceLock;
+    }
 }

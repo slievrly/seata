@@ -24,7 +24,9 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Stream;
+
 import javax.sql.DataSource;
+
 import org.apache.seata.common.exception.StoreException;
 import org.apache.seata.common.executor.Initialize;
 import org.apache.seata.common.util.ConfigTools;
@@ -78,11 +80,36 @@ public abstract class AbstractDataSourceProvider implements DataSourceProvider, 
         return this.dataSource;
     }
 
+    public DataSource generate() {
+        validate();
+        return doGenerate();
+    }
+
+    public void validate() {
+        //valid driver class name
+        String driverClassName = getDriverClassName();
+        ClassLoader loader = getDriverClassLoader();
+        if (null == loader) {
+            throw new StoreException("class loader set error, you should not use the Bootstrap classloader");
+        }
+        try {
+            loader.loadClass(driverClassName);
+        } catch (ClassNotFoundException exx) {
+            String driverClassPath = null;
+            String folderPath = System.getProperty("loader.path");
+            if (null != folderPath) {
+                driverClassPath = folderPath + "/jdbc/";
+            }
+            throw new StoreException(String.format(
+                    "The driver {%s} cannot be found in the path %s. Please ensure that the appropriate database driver dependencies are included in the classpath.", driverClassName, driverClassPath));
+        }
+
+    }
     /**
      * generate the datasource
      * @return datasource
      */
-    public abstract DataSource generate();
+    public abstract DataSource doGenerate();
 
     /**
      * Get db type db type.

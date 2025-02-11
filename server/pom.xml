@@ -32,9 +32,10 @@
     <description>server for Seata built with Maven</description>
 
     <properties>
-        <spring-boot-for-server.version>2.7.17</spring-boot-for-server.version>
-        <spring-framework-for-server.version>5.3.30</spring-framework-for-server.version>
+        <spring-boot-for-server.version>2.7.18</spring-boot-for-server.version>
+        <spring-framework-for-server.version>5.3.39</spring-framework-for-server.version>
         <snakeyaml-for-server.version>2.0</snakeyaml-for-server.version>
+        <tomcat-embed.version>9.0.98</tomcat-embed.version>
     </properties>
 
     <dependencyManagement>
@@ -64,12 +65,24 @@
                 <version>${spring-boot-for-server.version}</version>
                 <exclusions>
                     <exclusion>
-                        <groupId>org.springframework</groupId>
-                        <artifactId>spring-framework-bom</artifactId>
+                        <groupId>org.apache.kafka</groupId>
+                        <artifactId>kafka-clients</artifactId>
                     </exclusion>
                     <exclusion>
-                        <groupId>org.yaml</groupId>
-                        <artifactId>snakeyaml</artifactId>
+                        <groupId>org.apache.tomcat.embed</groupId>
+                        <artifactId>tomcat-embed-core</artifactId>
+                    </exclusion>
+                    <exclusion>
+                        <groupId>org.apache.tomcat.embed</groupId>
+                        <artifactId>tomcat-embed-websocket</artifactId>
+                    </exclusion>
+                    <exclusion>
+                        <groupId>org.apache.tomcat.embed</groupId>
+                        <artifactId>tomcat-embed-el</artifactId>
+                    </exclusion>
+                    <exclusion>
+                        <groupId>org.springframework</groupId>
+                        <artifactId>spring-framework-bom</artifactId>
                     </exclusion>
                 </exclusions>
                 <type>pom</type>
@@ -80,10 +93,30 @@
                 <artifactId>snakeyaml</artifactId>
                 <version>${snakeyaml-for-server.version}</version>
             </dependency>
+            <dependency>
+                <groupId>org.apache.tomcat.embed</groupId>
+                <artifactId>tomcat-embed-core</artifactId>
+                <version>${tomcat-embed.version}</version>
+            </dependency>
         </dependencies>
     </dependencyManagement>
 
     <dependencies>
+        <dependency>
+            <groupId>org.apache.tomcat.embed</groupId>
+            <artifactId>tomcat-embed-core</artifactId>
+            <version>${tomcat-embed.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.tomcat.embed</groupId>
+            <artifactId>tomcat-embed-el</artifactId>
+            <version>${tomcat-embed.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.tomcat.embed</groupId>
+            <artifactId>tomcat-embed-websocket</artifactId>
+            <version>${tomcat-embed.version}</version>
+        </dependency>
         <!-- springboot web -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -93,7 +126,28 @@
                     <artifactId>log4j-to-slf4j</artifactId>
                     <groupId>org.apache.logging.log4j</groupId>
                 </exclusion>
+                <exclusion>
+                    <groupId>org.apache.tomcat.embed</groupId>
+                    <artifactId>tomcat-embed-core</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.apache.tomcat.embed</groupId>
+                    <artifactId>tomcat-embed-websocket</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.apache.tomcat.embed</groupId>
+                    <artifactId>tomcat-embed-el</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.yaml</groupId>
+                    <artifactId>snakeyaml</artifactId>
+                </exclusion>
             </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>org.yaml</groupId>
+            <artifactId>snakeyaml</artifactId>
+            <version>${snakeyaml.version}</version>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -172,17 +226,19 @@
         <dependency>
             <groupId>com.h2database</groupId>
             <artifactId>h2</artifactId>
+            <scope>test</scope>
         </dependency>
        <!--  if you run seata-server in IDE and use mysql8 as session store, please rewrite version to ${mysql8.jdbc.version}-->
         <dependency>
             <groupId>mysql</groupId>
             <artifactId>mysql-connector-java</artifactId>
+            <scope>test</scope>
         </dependency>
-<!--        <dependency>-->
-<!--            <groupId>org.mariadb.jdbc</groupId>-->
-<!--            <artifactId>mariadb-java-client</artifactId>-->
-<!--            <scope>provided</scope>-->
-<!--        </dependency>-->
+<!--        <dependency>
+            <groupId>org.mariadb.jdbc</groupId>
+            <artifactId>mariadb-java-client</artifactId>
+            <scope>provided</scope>
+        </dependency>-->
         <dependency>
             <groupId>org.postgresql</groupId>
             <artifactId>postgresql</artifactId>
@@ -217,12 +273,6 @@
         </dependency>
 
         <dependency>
-            <groupId>com.github.microwww</groupId>
-            <artifactId>redis-server</artifactId>
-            <scope>test</scope>
-        </dependency>
-
-        <dependency>
             <groupId>com.alibaba</groupId>
             <artifactId>fastjson</artifactId>
         </dependency>
@@ -244,18 +294,42 @@
         <dependency>
             <groupId>com.github.danielwegener</groupId>
             <artifactId>logback-kafka-appender</artifactId>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.apache.kafka</groupId>
+                    <artifactId>kafka-clients</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <dependency>
             <groupId>org.apache.kafka</groupId>
             <artifactId>kafka-clients</artifactId>
+            <version>${kafka-clients.version}</version>
         </dependency>
         <dependency>
             <groupId>com.alipay.sofa</groupId>
             <artifactId>jraft-core</artifactId>
+            <exclusions>
+                <exclusion>
+                    <groupId>com.alipay.sofa</groupId>
+                    <artifactId>bolt</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>com.alipay.sofa</groupId>
+            <artifactId>bolt</artifactId>
         </dependency>
         <dependency>
             <groupId>org.codehaus.janino</groupId>
             <artifactId>janino</artifactId>
+        </dependency>
+
+        <!--rate limit-->
+        <dependency>
+            <groupId>com.bucket4j</groupId>
+            <artifactId>bucket4j_jdk8-core</artifactId>
+            <version>${bucket4j.version}</version>
         </dependency>
     </dependencies>
 
@@ -312,7 +386,7 @@
                             <outputDirectory>
                                 ${project.build.directory}/lib/jdbc
                             </outputDirectory>
-                            <skip>${dependencies.copy.skip}</skip>
+                            <skip>${mysql.copy.skip}</skip>
                         </configuration>
                     </execution>
                 </executions>
@@ -336,7 +410,7 @@
                         </platforms>
                     </from>
                     <to>
-                        <image>docker.io/seataio/seata-server</image>
+                        <image>docker.io/apache/seata-server</image>
                         <tags>${image.tags}</tags>
                         <auth>
                             <username>${REGISTRY_USERNAME}</username>
@@ -374,7 +448,7 @@
                     <extraDirectories>
                         <paths>
                             <path>
-                                <from>target/lib/jdbc</from>
+                                <from>src/main/resources/jdbc</from>
                                 <into>/seata-server/libs/jdbc</into>
                             </path>
                             <path>
@@ -416,11 +490,12 @@
                     <plugin>
                         <groupId>org.springframework.boot</groupId>
                         <artifactId>spring-boot-maven-plugin</artifactId>
-                        <version>${spring-boot.version}</version>
+                        <version>${spring-boot-for-server.version}</version>
                         <configuration>
                             <mainClass>org.apache.seata.server.ServerApplication</mainClass>
                             <layout>ZIP</layout>
                             <attach>false</attach>
+                            <classifier>exec</classifier>
                             <includes>
                                 <include>
                                     <groupId>null</groupId>

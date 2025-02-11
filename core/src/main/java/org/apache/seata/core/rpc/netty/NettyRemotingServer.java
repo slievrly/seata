@@ -45,7 +45,7 @@ public class NettyRemotingServer extends AbstractNettyRemotingServer {
 
     private final AtomicBoolean initialized = new AtomicBoolean(false);
 
-    private ThreadPoolExecutor branchResultMessageExecutor = new ThreadPoolExecutor(NettyServerConfig.getMinBranchResultPoolSize(),
+    private final ThreadPoolExecutor branchResultMessageExecutor = new ThreadPoolExecutor(NettyServerConfig.getMinBranchResultPoolSize(),
             NettyServerConfig.getMaxBranchResultPoolSize(), NettyServerConfig.getKeepAliveTime(), TimeUnit.SECONDS,
             new LinkedBlockingQueue<>(NettyServerConfig.getMaxTaskQueueSize()),
             new NamedThreadFactory("BranchResultHandlerThread", NettyServerConfig.getMaxBranchResultPoolSize()), new ThreadPoolExecutor.CallerRunsPolicy());
@@ -66,6 +66,10 @@ public class NettyRemotingServer extends AbstractNettyRemotingServer {
      */
     public NettyRemotingServer(ThreadPoolExecutor messageExecutor) {
         super(messageExecutor, new NettyServerConfig());
+    }
+
+    public NettyRemotingServer(ThreadPoolExecutor messageExecutor, NettyServerConfig nettyServerConfig) {
+        super(messageExecutor, nettyServerConfig);
     }
 
     /**

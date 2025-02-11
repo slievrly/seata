@@ -16,14 +16,6 @@
  */
 package org.apache.seata.integration.tx.api.interceptor;
 
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
-import java.lang.reflect.Field;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
 import org.apache.seata.common.exception.FrameworkException;
 import org.apache.seata.common.util.CollectionUtils;
 import org.apache.seata.common.util.ReflectionUtil;
@@ -35,9 +27,18 @@ import org.apache.seata.rm.tcc.api.ParamType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+import java.lang.annotation.Annotation;
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
 /**
  * Extracting TCC Context from Method
- *
  */
 public final class ActionContextUtil {
 
@@ -97,7 +98,7 @@ public final class ActionContextUtil {
      * @param actionContext the action context
      */
     public static void loadParamByAnnotationAndPutToContext(@Nonnull final ParamType paramType, @Nonnull String paramName, Object paramValue,
-            @Nonnull final BusinessActionContextParameter annotation, @Nonnull final Map<String, Object> actionContext) {
+                                                            @Nonnull final BusinessActionContextParameter annotation, @Nonnull final Map<String, Object> actionContext) {
         if (paramValue == null) {
             return;
         }
@@ -128,10 +129,10 @@ public final class ActionContextUtil {
     }
 
     @Nullable
-    private static Object getByIndex(@Nonnull ParamType paramType, @Nonnull String paramName, @Nonnull Object paramValue, int index) {
+    public static Object getByIndex(@Nonnull ParamType paramType, @Nonnull String paramName, @Nonnull Object paramValue, int index) {
         if (paramValue instanceof List) {
             @SuppressWarnings("unchecked")
-            List<Object> list = (List<Object>)paramValue;
+            List<Object> list = (List<Object>) paramValue;
             if (list.isEmpty()) {
                 return null;
             }
@@ -145,7 +146,7 @@ public final class ActionContextUtil {
             paramValue = list.get(index);
         } else {
             LOGGER.warn("the {} named '{}' is not a `List`, so the 'index' field of '@{}' cannot be used on it",
-                paramType.getCode(), paramName, BusinessActionContextParameter.class.getSimpleName());
+                    paramType.getCode(), paramName, BusinessActionContextParameter.class.getSimpleName());
         }
 
         return paramValue;
@@ -271,12 +272,12 @@ public final class ActionContextUtil {
 
         // Same class or super class, can cast directly
         if (targetClazz.isAssignableFrom(value.getClass())) {
-            return (T)value;
+            return (T) value;
         }
 
         // String class
         if (String.class.equals(targetClazz)) {
-            return (T)value.toString();
+            return (T) value.toString();
         }
 
         // JSON to Object
@@ -291,5 +292,31 @@ public final class ActionContextUtil {
                     key, value.getClass().getName(), targetClazz.getName());
             throw new FrameworkException(e, errorMsg);
         }
+    }
+
+    public static String[] getTwoPhaseArgs(Method method, Class<?>[] argsClasses) {
+        Annotation[][] parameterAnnotations = method.getParameterAnnotations();
+        String[] keys = new String[parameterAnnotations.length];
+        /*
+         * get parameter's key
+         * if method's parameter list is like
+         * (BusinessActionContext, @BusinessActionContextParameter("a") A a, @BusinessActionContextParameter("b") B b)
+         * the keys will be [null, a, b]
+         */
+        for (int i = 0; i < parameterAnnotations.length; i++) {
+            for (int j = 0; j < parameterAnnotations[i].length; j++) {
+                if (parameterAnnotations[i][j] instanceof BusinessActionContextParameter) {
+                    BusinessActionContextParameter param = (BusinessActionContextParameter) parameterAnnotations[i][j];
+                    String key = ActionContextUtil.getParamNameFromAnnotation(param);
+                    keys[i] = key;
+                    break;
+                }
+            }
+            if (keys[i] == null && !(argsClasses[i].equals(BusinessActionContext.class))) {
+                throw new IllegalArgumentException("non-BusinessActionContext parameter should use annotation " +
+                        "BusinessActionContextParameter");
+            }
+        }
+        return keys;
     }
 }

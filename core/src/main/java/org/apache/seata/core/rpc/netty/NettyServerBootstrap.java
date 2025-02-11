@@ -34,11 +34,11 @@ import io.netty.channel.socket.SocketChannel;
 import io.netty.handler.timeout.IdleStateHandler;
 import org.apache.seata.common.ConfigurationKeys;
 import org.apache.seata.common.XID;
+import org.apache.seata.common.metadata.Instance;
+import org.apache.seata.common.metadata.Node;
 import org.apache.seata.common.thread.NamedThreadFactory;
 import org.apache.seata.config.ConfigurationFactory;
 import org.apache.seata.core.rpc.RemotingBootstrap;
-import org.apache.seata.core.rpc.netty.v1.ProtocolV1Decoder;
-import org.apache.seata.core.rpc.netty.v1.ProtocolV1Encoder;
 import org.apache.seata.discovery.registry.MultiRegistryFactory;
 import org.apache.seata.discovery.registry.RegistryService;
 import org.slf4j.Logger;
@@ -77,6 +77,10 @@ public class NettyServerBootstrap implements RemotingBootstrap {
                 new NamedThreadFactory(nettyServerConfig.getWorkerThreadPrefix(),
                     nettyServerConfig.getServerWorkerThreads()));
         }
+
+        if (nettyServerConfig.getServerListenPort() > 0) {
+            setListenPort(nettyServerConfig.getServerListenPort());
+        }
     }
 
     /**
@@ -88,6 +92,10 @@ public class NettyServerBootstrap implements RemotingBootstrap {
         if (handlers != null) {
             channelHandlers = handlers;
         }
+    }
+
+    protected ChannelHandler[] getChannelHandlers() {
+        return channelHandlers;
     }
 
     /**
@@ -157,21 +165,20 @@ public class NettyServerBootstrap implements RemotingBootstrap {
                 @Override
                 public void initChannel(SocketChannel ch) {
                     ch.pipeline().addLast(new IdleStateHandler(nettyServerConfig.getChannelMaxReadIdleSeconds(), 0, 0))
-                        .addLast(new ProtocolV1Decoder())
-                        .addLast(new ProtocolV1Encoder());
-                    if (channelHandlers != null) {
-                        addChannelPipelineLast(ch, channelHandlers);
-                    }
-
+                            .addLast(new ProtocolDetectHandler(NettyServerBootstrap.this));
                 }
             });
 
         try {
             this.serverBootstrap.bind(port).sync();
             LOGGER.info("Server started, service listen port: {}", getListenPort());
-            InetSocketAddress address = new InetSocketAddress(XID.getIpAddress(), XID.getPort());
+            Instance instance = Instance.getInstance();
+            // Lines 177-180 are just for compatibility with test cases
+            if (instance.getTransaction() == null) {
+                Instance.getInstance().setTransaction(new Node.Endpoint(XID.getIpAddress(), XID.getPort(), "netty"));
+            }
             for (RegistryService<?> registryService : MultiRegistryFactory.getInstances()) {
-                registryService.register(address);
+                registryService.register(Instance.getInstance());
             }
             initialized.set(true);
         } catch (SocketException se) {
@@ -188,9 +195,8 @@ public class NettyServerBootstrap implements RemotingBootstrap {
                 LOGGER.info("Shutting server down, the listen port: {}", XID.getPort());
             }
             if (initialized.get()) {
-                InetSocketAddress address = new InetSocketAddress(XID.getIpAddress(), XID.getPort());
                 for (RegistryService registryService : MultiRegistryFactory.getInstances()) {
-                    registryService.unregister(address);
+                    registryService.unregister(Instance.getInstance());
                     registryService.close();
                 }
                 //wait a few seconds for server transport

@@ -23,13 +23,9 @@ import org.apache.seata.core.protocol.ResultCode;
 import org.apache.seata.core.rpc.netty.ChannelManagerTestHelper;
 import org.apache.seata.core.rpc.netty.TmNettyRemotingClient;
 import org.apache.seata.mockserver.MockCoordinator;
-import org.apache.seata.mockserver.MockServer;
 import org.apache.seata.tm.DefaultTransactionManager;
 import org.jetbrains.annotations.NotNull;
-import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -40,19 +36,7 @@ public class TmClientTest {
 
     protected static final Logger LOGGER = LoggerFactory.getLogger(TmClientTest.class);
 
-    @BeforeAll
-    public static void before() {
-        MockServer.start();
-    }
-
-    @AfterAll
-    public static void after() {
-        MockServer.close();
-    }
-
-    @Test
-    public void testTm() throws Exception {
-
+    public static void testTm() throws Exception {
         TransactionManager tm = getTm();
 
         //globalBegin:TYPE_GLOBAL_BEGIN = 1 , TYPE_GLOBAL_BEGIN_RESULT = 2
@@ -80,7 +64,7 @@ public class TmClientTest {
         LOGGER.info("globalReport ok:" + globalReport);
         Assertions.assertEquals(globalReport, GlobalStatus.Committed);
 
-        MockCoordinator.getInstance().setExepectedResult(xid, ResultCode.Failed);
+        MockCoordinator.getInstance().setExpectedResult(xid, ResultCode.Failed);
 //        GlobalStatus globalReport2 = tm.globalReport(xid, GlobalStatus.Committed);
 
         GlobalStatus rollback2 = tm.rollback(xid);

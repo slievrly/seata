@@ -24,6 +24,7 @@ seata:
   enable-auto-data-source-proxy: true
   data-source-proxy-mode: AT
   use-jdk-proxy: false
+  expose-proxy: false
   scan-packages: firstPackage,secondPackage
   excludes-for-scanning: firstBeanNameForExclude,secondBeanNameForExclude
   excludes-for-auto-proxying: firstClassNameForExclude,secondClassNameForExclude
@@ -70,9 +71,9 @@ seata:
       default_tx_group: default
     grouplist:
       default: 127.0.0.1:8091
-    enable-degrade: false
     disable-global-transaction: false
   transport:
+    protocol: seata
     shutdown:
       wait: 3
     thread-factory:
@@ -131,6 +132,13 @@ seata:
       name:
   registry:
     type: file
+    # Supports address translation parameters, currently only supported in raft mode，
+    # if match the preferredNetworks rule return the first, eg: preferredNetworks = "192.168.*"
+    preferredNetworks: ""
+    seata:
+      server-addr: 127.0.0.1:8081
+      namespace: public
+      heartbeat-period: 5000
     raft:
       server-addr:
       metadata-max-age-ms: 30000

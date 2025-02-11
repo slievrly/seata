@@ -20,10 +20,13 @@ import java.io.IOException;
 
 import org.apache.seata.common.XID;
 import org.apache.seata.common.loader.EnhancedServiceLoader;
+import org.apache.seata.common.store.SessionMode;
+import org.apache.seata.common.store.StoreMode;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.ApplicationContext;
 import redis.clients.jedis.Jedis;
@@ -32,14 +35,13 @@ import org.apache.seata.core.store.DistributedLocker;
 import org.apache.seata.server.lock.distributed.DistributedLockerFactory;
 import org.apache.seata.server.session.SessionHolder;
 import org.apache.seata.server.storage.redis.JedisPooledFactory;
-import org.apache.seata.server.store.StoreConfig.SessionMode;
-import static org.apache.seata.server.store.StoreConfig.StoreMode;
 
 /**
  * @description redis distributed lock test
  *
  */
 @SpringBootTest
+@EnabledIfSystemProperty(named = "redisCaseEnabled", matches = "true")
 public class RedisDistributedLockerTest {
 
     private String retryRollbacking = "RetryRollbacking";
@@ -52,7 +54,6 @@ public class RedisDistributedLockerTest {
     @BeforeAll
     public static void start(ApplicationContext context) throws IOException {
         EnhancedServiceLoader.unload(DistributedLocker.class);
-        MockRedisServer.getInstance();
         DistributedLockerFactory.cleanLocker();
         distributedLocker = DistributedLockerFactory.getDistributedLocker(StoreMode.REDIS.getName());
         jedis = JedisPooledFactory.getJedisInstance();
@@ -120,9 +121,8 @@ public class RedisDistributedLockerTest {
         boolean d = distributedLocker.acquireLock(new DistributedLockDO(retryRollbacking, lockValue + 2, 2000L));
         Assertions.assertFalse(d);
 
-       //sleep 60s
         try {
-            Thread.sleep(2000);
+            Thread.sleep(2100);
         } catch (InterruptedException e) {
             e.printStackTrace();
         }

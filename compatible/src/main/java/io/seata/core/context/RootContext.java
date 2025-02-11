@@ -16,17 +16,39 @@
  */
 package io.seata.core.context;
 
+
 import java.util.Map;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-import org.apache.seata.core.model.BranchType;
+import io.seata.core.model.BranchType;
 
 /**
  * The type Root context.
  */
+@Deprecated
 public class RootContext {
+
+    /**
+     * The constant KEY_XID.
+     * used for apache dubbo
+     */
+    public static final String KEY_XID = "TX_XID";
+
+    /**
+     * The constant KEY_BRANCH_TYPE
+     * * used for apache dubbo
+     */
+    public static final String KEY_BRANCH_TYPE = "TX_BRANCH_TYPE";
+
+    private static BranchType convertIoSeata(org.apache.seata.core.model.BranchType branchType) {
+        if (branchType == null) {
+            return null;
+        } else {
+            return BranchType.get(branchType.name());
+        }
+    }
 
     /**
      * Sets default branch type.
@@ -34,7 +56,7 @@ public class RootContext {
      * @param defaultBranchType the default branch type
      */
     public static void setDefaultBranchType(BranchType defaultBranchType) {
-        org.apache.seata.core.context.RootContext.setDefaultBranchType(defaultBranchType);
+        org.apache.seata.core.context.RootContext.setDefaultBranchType(defaultBranchType.convertBranchType());
     }
 
     /**
@@ -132,7 +154,7 @@ public class RootContext {
      */
     @Nullable
     public static BranchType getBranchType() {
-        return org.apache.seata.core.context.RootContext.getBranchType();
+        return convertIoSeata(org.apache.seata.core.context.RootContext.getBranchType());
     }
 
     /**
@@ -141,7 +163,7 @@ public class RootContext {
      * @param branchType the branch type
      */
     public static void bindBranchType(@Nonnull BranchType branchType) {
-        org.apache.seata.core.context.RootContext.bindBranchType(branchType);
+        org.apache.seata.core.context.RootContext.bindBranchType(branchType.convertBranchType());
     }
 
     /**
@@ -151,7 +173,7 @@ public class RootContext {
      */
     @Nullable
     public static BranchType unbindBranchType() {
-        return org.apache.seata.core.context.RootContext.unbindBranchType();
+        return convertIoSeata(org.apache.seata.core.context.RootContext.unbindBranchType());
     }
 
     /**
